@@ -1,0 +1,4 @@
+node_modules/
+.env
+agents/*/memory.json.bak
+agents/*/memory.json.*.bak

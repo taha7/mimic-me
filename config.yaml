@@ -1,0 +1,11 @@
+agents:
+  nodejs-developer:
+    enabled: true
+    slack_bot_token_env: SLACK_BOT_TOKEN
+    slack_app_token_env: SLACK_APP_TOKEN
+    entry: agents/nodejs-developer/index.js
+    github_repo_env: GITHUB_REPO
+    labels:
+      assigned: agent-assigned
+      type_code: type:code
+      type_spike: type:spike
