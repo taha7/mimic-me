@@ -101,39 +101,39 @@ mimic-me/
 
 > Goal: Agent reads a message, understands intent, and takes the right action.
 
-### 4a — Intent Parser
-- [ ] Build intent parser in `index.js`:
-  - `"start issue #12"` → fetch issue #12, run task flow
-  - `"what are my open issues?"` → list `agent-assigned` issues in Slack
-  - `"what's your current task?"` → report current state
-  - `"stop"` → abandon current task, report stopped
-  - Anything else → pass to Claude with context, reply in Slack
+### 4a — Intent Router
+- [x] Install Anthropic SDK: `npm install @anthropic-ai/sdk`
+- [x] Build Claude-based intent router in `index.js`:
+  - Single Haiku call with structured JSON output — no regex
+  - Routes: `start_issue`, `list_issues`, `current_task`, `stop`, `unknown`
+  - Handles natural language variations automatically
+  - In-memory `currentTask` state (one task at a time)
 
 ### 4b — Prompt Builder
-- [ ] Build `agents/nodejs-developer/prompts/task.js`:
+- [x] Build `agents/nodejs-developer/prompts/task.js`:
   - Reads `workflow.md` (code standards)
   - Reads `memory.json` (past feedback patterns)
   - Reads issue title + body
   - Constructs Claude prompt: system = workflow + memory, user = issue content + task type
-- [ ] Install Anthropic SDK: `npm install @anthropic-ai/sdk`
-- [ ] Wire Claude call: use `claude-haiku-4-5` for routine tasks, escalate to `claude-sonnet-4-6` for spikes
+- [x] Wire Claude call: `claude-haiku-4-5-20251001` for `type:code`, `claude-sonnet-4-6` for `type:spike`
+- [x] `handleStartIssue` calls Claude and echoes output to Slack (GitHub commit/PR wired in 4c/4d)
 
 ### 4c — Code Task Flow
-- [ ] When `type:code`:
+- [x] When `type:code`:
   1. Post to Slack: "Starting issue #{n}: {title}. Creating branch..."
   2. Create branch `feat/issue-{n}-{slug}`
   3. Call Claude with prompt → get code output
-  4. Commit files to branch via GitHub API
-  5. Open PR with Claude-generated description
-  6. Post PR link to Slack: "Done. PR #{n} is open for your review."
+  4. Parse multi-file output (`--- path ---` / `--- end ---`), fall back to single file
+  5. Commit each file to branch via GitHub API
+  6. Open PR, post PR link to Slack
 
 ### 4d — Spike Task Flow
-- [ ] When `type:spike`:
+- [x] When `type:spike`:
   1. Post to Slack: "Starting spike for issue #{n}. Writing design doc..."
   2. Create branch `spike/issue-{n}-{slug}`
   3. Call Claude → get markdown design document
   4. Commit `SPIKE.md` to branch via GitHub API
-  5. Open PR with the design doc
+  5. Open PR with the design doc as PR body
   6. Post PR link to Slack + paste doc summary in Slack thread
 
 ---
