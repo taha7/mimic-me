@@ -91,3 +91,24 @@ export async function getPRReviewComments(prNumber) {
   });
   return data;
 }
+
+export async function getAgentClosedPRs() {
+  const { data } = await octokit.pulls.list({
+    owner,
+    repo,
+    state: 'closed',
+    per_page: 20,
+    sort: 'updated',
+    direction: 'desc',
+  });
+  return data.filter(
+    (pr) =>
+      pr.head.ref.startsWith('feat/issue-') ||
+      pr.head.ref.startsWith('spike/issue-'),
+  );
+}
+
+export function issueNumberFromBranch(branchName) {
+  const match = branchName.match(/issue-(\d+)/);
+  return match ? parseInt(match[1], 10) : null;
+}

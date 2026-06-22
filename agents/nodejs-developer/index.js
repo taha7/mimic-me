@@ -3,8 +3,9 @@ import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import Anthropic from '@anthropic-ai/sdk';
-import { initSlack, onCEOMessage } from './tools/slack.js';
-import { getAssignedIssues, getIssue, getIssueType, createBranch, commitFile, openPR } from './tools/github.js';
+import { initSlack, onCEOMessage, sendMessage } from './tools/slack.js';
+import { getAssignedIssues, getIssue, getIssueType, createBranch, commitFile, openPR, getAgentClosedPRs, getPRReviewComments, issueNumberFromBranch } from './tools/github.js';
+import { isAlreadyProcessed, updateMemoryFromPR } from './tools/memory.js';
 import { buildSystemPrompt, buildUserMessage } from './prompts/task.js';
 
 const AGENT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -323,6 +324,50 @@ async function handleMessage(text, say) {
   }
 }
 
+const MEMORY_POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+
+async function runMemoryUpdate() {
+  let closedPRs;
+  try {
+    closedPRs = await getAgentClosedPRs();
+  } catch (err) {
+    console.error('Memory poller: failed to fetch closed PRs:', err.message);
+    return;
+  }
+
+  for (const pr of closedPRs) {
+    const prNumber = pr.number;
+    if (await isAlreadyProcessed(prNumber)) continue;
+
+    const issueNumber = issueNumberFromBranch(pr.head.ref);
+
+    let comments;
+    try {
+      comments = await getPRReviewComments(prNumber);
+    } catch (err) {
+      console.error(`Memory poller: failed to fetch comments for PR #${prNumber}:`, err.message);
+      continue;
+    }
+
+    let result;
+    try {
+      result = await updateMemoryFromPR(prNumber, issueNumber, comments);
+    } catch (err) {
+      console.error(`Memory poller: failed to update memory for PR #${prNumber}:`, err.message);
+      continue;
+    }
+
+    if (result && result.newPatterns.length > 0) {
+      const patternLines = result.newPatterns.map((p) => `• ${p}`).join('\n');
+      try {
+        await sendMessage(`:brain: Learned ${result.newPatterns.length} new pattern(s) from PR #${prNumber}:\n${patternLines}`);
+      } catch (err) {
+        console.error('Memory poller: failed to send Slack notification:', err.message);
+      }
+    }
+  }
+}
+
 async function start() {
   const app = initSlack();
 
@@ -330,6 +375,13 @@ async function start() {
 
   await app.start();
   console.log('nodejs-developer agent is running');
+
+  // Run once on boot, then on interval
+  runMemoryUpdate().catch((err) => console.error('Memory poller error:', err.message));
+  setInterval(
+    () => runMemoryUpdate().catch((err) => console.error('Memory poller error:', err.message)),
+    MEMORY_POLL_INTERVAL_MS,
+  );
 }
 
 start().catch((err) => {
