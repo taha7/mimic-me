@@ -172,7 +172,32 @@ mimic-me/
 
 ---
 
-## Phase 6 — Railway Deployment
+## Phase 6 — Management UI (future)
+
+> Goal: Add/disable agents without touching code.
+
+- [ ] Build simple web UI on `taha7.com` (Hostinger shared hosting)
+  - List active agents (read from `config.yaml`)
+  - Toggle agents on/off
+  - Edit agent workflow doc in-browser
+  - View memory patterns per agent
+- [ ] UI calls a lightweight API hosted on Railway that reads/writes `config.yaml`
+- [ ] Auth: password-protected or Magic Link to your email
+
+---
+
+## Phase 7 — Second Agent (future)
+
+> Goal: Prove the pattern works for a second agent type.
+
+- [ ] Copy `agents/nodejs-developer/` → `agents/learning/`
+- [ ] Update `config.yaml` with new Slack bot credentials
+- [ ] Add new Railway service pointing to `agents/learning/index.js`
+- [ ] Add second Slack app for the learning agent bot user
+
+---
+
+## Phase 8 — Railway Deployment
 
 > Goal: Agent runs 24/7 on Railway, auto-deploys on every GitHub push.
 
@@ -187,31 +212,6 @@ mimic-me/
   1. Label a GitHub issue `agent-assigned` + `type:code`
   2. DM bot: "start issue #{n}"
   3. Confirm branch created, PR opened, Slack message received
-
----
-
-## Phase 7 — Management UI (future)
-
-> Goal: Add/disable agents without touching code.
-
-- [ ] Build simple web UI on `taha7.com` (Hostinger shared hosting)
-  - List active agents (read from `config.yaml`)
-  - Toggle agents on/off
-  - Edit agent workflow doc in-browser
-  - View memory patterns per agent
-- [ ] UI calls a lightweight API hosted on Railway that reads/writes `config.yaml`
-- [ ] Auth: password-protected or Magic Link to your email
-
----
-
-## Phase 8 — Second Agent (future)
-
-> Goal: Prove the pattern works for a second agent type.
-
-- [ ] Copy `agents/nodejs-developer/` → `agents/learning/`
-- [ ] Update `config.yaml` with new Slack bot credentials
-- [ ] Add new Railway service pointing to `agents/learning/index.js`
-- [ ] Add second Slack app for the learning agent bot user
 
 ---
 
