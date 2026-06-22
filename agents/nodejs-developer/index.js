@@ -1,8 +1,13 @@
 import 'dotenv/config';
+import { spawn } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { initSlack, onCEOMessage } from './tools/slack.js';
 import { getAssignedIssues, getIssue, getIssueType, createBranch, commitFile, openPR } from './tools/github.js';
 import { buildSystemPrompt, buildUserMessage } from './prompts/task.js';
+
+const AGENT_DIR = dirname(fileURLToPath(import.meta.url));
 
 const anthropic = new Anthropic();
 
@@ -16,6 +21,7 @@ Valid intents and their required fields:
 - { "intent": "list_issues" }
 - { "intent": "current_task" }
 - { "intent": "stop" }
+- { "intent": "call_claude", "prompt": "<everything after the trigger>" }
 - { "intent": "unknown", "text": "<original message>" }
 
 Rules:
@@ -24,6 +30,7 @@ Rules:
 - Use "list_issues" when asking to see, list, or show open/assigned issues.
 - Use "current_task" when asking what the agent is doing, its status, or current work.
 - Use "stop" when asking to stop, cancel, or abandon the current task.
+- Use "call_claude" when the message starts with "call_claude:" or "claude:" or asks to run Claude Code on a prompt. Extract the prompt text after the trigger.
 - Use "unknown" for everything else.`;
 
 async function parseIntent(text) {
@@ -247,8 +254,41 @@ export async function callClaude(issue, taskType) {
   return response.content[0].text;
 }
 
+function runClaudeCode(prompt) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn('claude', ['-p', prompt, '--output-format', 'text'], {
+      cwd: AGENT_DIR,
+      env: process.env,
+    });
+
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', (d) => { stdout += d; });
+    proc.stderr.on('data', (d) => { stderr += d; });
+    proc.on('close', (code) => {
+      if (code !== 0) reject(new Error(stderr.trim() || `claude exited with code ${code}`));
+      else resolve(stdout.trim());
+    });
+  });
+}
+
+async function handleCallClaude(prompt, say) {
+  await say(`Running Claude Code on: _${prompt}_`);
+  let output;
+  try {
+    output = await runClaudeCode(prompt);
+  } catch (err) {
+    await say(`:x: Claude Code failed: \`${err.message}\``);
+    return;
+  }
+
+  const MAX = 3000;
+  const truncated = output.length > MAX ? output.slice(0, MAX) + '\n…(truncated)' : output;
+  await say(`*Claude Code output:*\n\`\`\`\n${truncated}\n\`\`\``);
+}
+
 async function handleUnknown(text, say) {
-  await say(`I didn't understand: "${text}". Try: "start issue #N", "what are my open issues?", "what's your current task?", or "stop".`);
+  await say(`I didn't understand: "${text}". Try: "start issue #N", "list issues", "current task", "stop", or "call_claude: <prompt>".`);
 }
 
 async function handleMessage(text, say) {
@@ -267,6 +307,9 @@ async function handleMessage(text, say) {
         break;
       case 'stop':
         await handleStop(say);
+        break;
+      case 'call_claude':
+        await handleCallClaude(parsed.prompt, say);
         break;
       default:
         await handleUnknown(parsed.text ?? text, say);

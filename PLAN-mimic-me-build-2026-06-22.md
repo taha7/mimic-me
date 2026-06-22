@@ -105,9 +105,10 @@ mimic-me/
 - [x] Install Anthropic SDK: `npm install @anthropic-ai/sdk`
 - [x] Build Claude-based intent router in `index.js`:
   - Single Haiku call with structured JSON output — no regex
-  - Routes: `start_issue`, `list_issues`, `current_task`, `stop`, `unknown`
+  - Routes: `start_issue`, `list_issues`, `current_task`, `stop`, `call_claude`, `unknown`
   - Handles natural language variations automatically
   - In-memory `currentTask` state (one task at a time)
+- [x] `call_claude` intent: spawns `claude -p "<prompt>"` as a child process via IPC in the agent directory, streams output back to Slack (truncated at 3000 chars). Triggered by "call_claude: ..." or "claude: ..." in DM.
 
 ### 4b — Prompt Builder
 - [x] Build `agents/nodejs-developer/prompts/task.js`:
