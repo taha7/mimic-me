@@ -5,6 +5,7 @@ agents:
     slack_app_token_env: SLACK_APP_TOKEN
     entry: agents/nodejs-developer/index.js
     github_repo_env: GITHUB_REPO
+    sessionTimeoutMinutes: 30
     labels:
       assigned: agent-assigned
       type_code: type:code

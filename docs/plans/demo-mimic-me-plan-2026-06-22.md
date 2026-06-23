@@ -105,10 +105,10 @@ mimic-me/
 - [x] Install Anthropic SDK: `npm install @anthropic-ai/sdk`
 - [x] Build Claude-based intent router in `index.js`:
   - Single Haiku call with structured JSON output — no regex
-  - Routes: `start_issue`, `list_issues`, `current_task`, `stop`, `call_claude`, `unknown`
+  - Routes: `start_issue`, `list_issues`, `current_task`, `stop`, `unknown`
   - Handles natural language variations automatically
   - In-memory `currentTask` state (one task at a time)
-- [x] `call_claude` intent: spawns `claude -p "<prompt>"` as a child process via IPC in the agent directory, streams output back to Slack (truncated at 3000 chars). Triggered by "call_claude: ..." or "claude: ..." in DM.
+- [x] `unknown` intent (any conversational message) → persistent Claude session (see Phase 4e)
 
 ### 4b — Prompt Builder
 - [x] Build `agents/nodejs-developer/prompts/task.js`:
@@ -127,6 +127,18 @@ mimic-me/
   4. Parse multi-file output (`--- path ---` / `--- end ---`), fall back to single file
   5. Commit each file to branch via GitHub API
   6. Open PR, post PR link to Slack
+
+### 4e — Persistent Claude Session
+- [x] Build `SessionManager` in `agents/nodejs-developer/tools/session.js`:
+  - `startSession(systemPrompt)` — creates an isolated temp dir, sets `_isFirst = true`
+  - `sendMessage(text)` — first call uses `claude -p ... --system-prompt ...`, subsequent calls use `claude -c -p ...` in the same temp dir to continue the conversation thread
+  - `endSession()` — kills any in-flight process, deletes the temp dir
+  - 30-minute inactivity timeout (configurable via `config.yaml`)
+- [x] Strip `ANTHROPIC_API_KEY` from the child process env to suppress the API key confirmation dialog
+- [x] Add pre-filter in `handleMessage`: "stop session" / "end session" → `endSession()` without hitting the intent router
+- [x] All `unknown` intents route to `handleChatMessage` → starts or continues the session
+- [x] Add `sessionTimeoutMinutes: 30` to `config.yaml`
+- [x] Document implementation + challenges in `docs/persistent-claude-session.md`
 
 ### 4d — Spike Task Flow
 - [x] When `type:spike`:
