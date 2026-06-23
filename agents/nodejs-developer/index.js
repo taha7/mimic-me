@@ -8,17 +8,17 @@ import { initSlack, onCEOMessage, sendMessage } from './tools/slack.js';
 import { getAssignedIssues, getIssue, getIssueType, createBranch, commitFile, openPR, getAgentClosedPRs, getPRReviewComments, issueNumberFromBranch } from './tools/github.js';
 import { isAlreadyProcessed, updateMemoryFromPR } from './tools/memory.js';
 import { buildSystemPrompt, buildUserMessage } from './prompts/task.js';
-import { buildSessionSystemPrompt } from './prompts/session.js';
-import { SessionManager } from './tools/session.js';
+// PLAN-sdk-tool-use-2026-06-24: replaced by Anthropic SDK agentic loop
+// import { buildSessionSystemPrompt } from './prompts/session.js';
+// import { SessionManager } from './tools/session.js';
 
 const AGENT_DIR = dirname(fileURLToPath(import.meta.url));
 
 const anthropic = new Anthropic();
 
-// Persistent Claude CLI session — created in start() once config is loaded
-let session;
-
-const STOP_SESSION_RE = /^(stop session|end session|kill session)\s*$/i;
+// PLAN-sdk-tool-use-2026-06-24: CLI session replaced by SDK agentic loop (messages[] array)
+// let session;
+// const STOP_SESSION_RE = /^(stop session|end session|kill session)\s*$/i;
 
 // In-memory task state — one task at a time
 let currentTask = null; // { issueNumber, issueTitle, type, status }
@@ -261,37 +261,39 @@ export async function callClaude(issue, taskType) {
   return response.content[0].text;
 }
 
+// PLAN-sdk-tool-use-2026-06-24: CLI session handleChatMessage — replaced by SDK agentic loop
+// async function handleChatMessage(text, say) {
+//   if (!session.isActive()) {
+//     const ready = session.startSession(buildSessionSystemPrompt());
+//     await say('_Starting Claude session…_');
+//     await ready;
+//   }
+//
+//   let response;
+//   try {
+//     response = await session.sendMessage(text);
+//   } catch (err) {
+//     await say(`:x: Claude session error: \`${err.message}\``);
+//     return;
+//   }
+//
+//   const MAX = 3000;
+//   const truncated = response.length > MAX ? response.slice(0, MAX) + '\n…(truncated)' : response;
+//   await say(truncated);
+// }
+
 async function handleChatMessage(text, say) {
-  if (!session.isActive()) {
-    const ready = session.startSession(buildSessionSystemPrompt());
-    await say('_Starting Claude session…_');
-    await ready;
-  }
-
-  let response;
-  try {
-    response = await session.sendMessage(text);
-  } catch (err) {
-    await say(`:x: Claude session error: \`${err.message}\``);
-    return;
-  }
-
-  const MAX = 3000;
-  const truncated = response.length > MAX ? response.slice(0, MAX) + '\n…(truncated)' : response;
-  await say(truncated);
+  // TODO: implement SDK agentic loop (see PLAN-sdk-tool-use-2026-06-24.md)
+  await say('_Agentic chat not yet implemented. See PLAN-sdk-tool-use-2026-06-24.md_');
 }
 
 async function handleMessage(text, say) {
-  // Pre-filter: session control commands bypass intent routing
-  if (STOP_SESSION_RE.test(text.trim())) {
-    if (session.isActive()) {
-      session.endSession();
-      await say('Claude session ended.');
-    } else {
-      await say('No active Claude session.');
-    }
-    return;
-  }
+  // PLAN-sdk-tool-use-2026-06-24: CLI session pre-filter removed; will be replaced by "reset chat"
+  // if (STOP_SESSION_RE.test(text.trim())) {
+  //   if (session.isActive()) { session.endSession(); await say('Claude session ended.'); }
+  //   else { await say('No active Claude session.'); }
+  //   return;
+  // }
 
   try {
     const parsed = await parseIntent(text);
@@ -368,8 +370,9 @@ async function runMemoryUpdate() {
 async function start() {
   const configRaw = await readFile(join(AGENT_DIR, '../../config.yaml'), 'utf8');
   const config = yamlLoad(configRaw);
-  const timeoutMinutes = config.agents?.['nodejs-developer']?.sessionTimeoutMinutes ?? 30;
-  session = new SessionManager(timeoutMinutes);
+  // PLAN-sdk-tool-use-2026-06-24: SessionManager replaced by SDK agentic loop
+  // const timeoutMinutes = config.agents?.['nodejs-developer']?.sessionTimeoutMinutes ?? 30;
+  // session = new SessionManager(timeoutMinutes);
 
   const app = initSlack();
 

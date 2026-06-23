@@ -184,7 +184,26 @@ mimic-me/
 
 ---
 
-## Phase 6 — Management UI (future)
+## Phase 6 — SDK Agentic Loop (replaces CLI session)
+
+> Goal: Replace the `SessionManager` (claude CLI subprocesses) with a direct Anthropic SDK tool-use loop so Claude can autonomously list issues, pick tasks, and trigger implementations during natural conversation.
+> Plan file: `PLAN-sdk-tool-use-2026-06-24.md`
+
+- [ ] Define tool schemas for the GitHub functions Claude can call:
+  - `list_issues` — wraps `getAssignedIssues()`
+  - `get_issue` — wraps `getIssue(number)`
+  - `start_issue` — triggers `handleCodeTask` or `handleSpikeTask` based on issue type
+- [ ] Replace `handleChatMessage` with an SDK agentic loop:
+  - Keep `messages[]` array in module scope (replaces CLI session temp dir)
+  - Use `claude-sonnet-4-6`
+  - Tool loop: call → check `stop_reason` → execute tool → append `tool_result` → repeat until `end_turn`
+- [ ] Wire "reset chat" command to clear the `messages[]` array
+- [ ] (Optional) Remove `parseIntent` / static intent router — let Claude decide from context
+- [ ] (Optional) Add inactivity timeout: clear `messages[]` after N minutes of silence
+
+---
+
+## Phase 7 — Management UI (future) (was Phase 6)
 
 > Goal: Add/disable agents without touching code.
 
@@ -199,7 +218,7 @@ mimic-me/
 
 ---
 
-## Phase 7 — Second Agent (future)
+## Phase 8 — Second Agent (future) (was Phase 7)
 
 > Goal: Prove the pattern works for a second agent type.
 
@@ -210,7 +229,7 @@ mimic-me/
 
 ---
 
-## Phase 8 — Railway Deployment
+## Phase 9 — Railway Deployment (was Phase 8)
 
 > Goal: Agent runs 24/7 on Railway, auto-deploys on every GitHub push.
 
