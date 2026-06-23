@@ -42,19 +42,19 @@ mimic-me/
 
 > Goal: Repo exists, structure is in place, secrets are wired up.
 
-- [ ] Create GitHub repo `mimic-me` (public or private)
-- [ ] Initialize Node.js project (`npm init`, set `"type": "module"`)
-- [ ] Create folder structure as above
-- [ ] Create `.env.example` with all required keys:
+- [x] Create GitHub repo `mimic-me` (public or private)
+- [x] Initialize Node.js project (`npm init`, set `"type": "module"`)
+- [x] Create folder structure as above
+- [x] Create `.env.example` with all required keys:
   - `SLACK_BOT_TOKEN` — bot OAuth token
   - `SLACK_APP_TOKEN` — socket mode app-level token
   - `SLACK_CEO_USER_ID` — your Slack user ID (only respond to you)
   - `GITHUB_TOKEN` — personal access token with repo scope
   - `GITHUB_OWNER` — your GitHub username or org
   - `ANTHROPIC_API_KEY`
-- [ ] Create `.gitignore` (node_modules, .env, memory.json backups)
-- [ ] Create `config.yaml` with nodejs-developer agent entry
-- [ ] Write initial `agents/nodejs-developer/workflow.md` with your code standards
+- [x] Create `.gitignore` (node_modules, .env, memory.json backups)
+- [x] Create `config.yaml` with nodejs-developer agent entry
+- [x] Write initial `agents/nodejs-developer/workflow.md` with your code standards
 
 ---
 
@@ -62,18 +62,18 @@ mimic-me/
 
 > Goal: The nodejs-developer bot connects to Slack, receives your DMs, and replies.
 
-- [ ] Create a Slack app at api.slack.com
+- [x] Create a Slack app at api.slack.com
   - Enable Socket Mode
   - Add bot scopes: `chat:write`, `im:read`, `im:history`, `im:write`
   - Enable Events API: subscribe to `message.im`
   - Install app to workspace, get bot token + app token
-- [ ] Install Slack SDK: `npm install @slack/bolt`
-- [ ] Build `agents/nodejs-developer/tools/slack.js`:
+- [x] Install Slack SDK: `npm install @slack/bolt`
+- [x] Build `agents/nodejs-developer/tools/slack.js`:
   - Initialize Bolt app with Socket Mode
   - Listen for DMs from CEO only (filter by `SLACK_CEO_USER_ID`)
   - Parse incoming message text
   - Export `sendMessage(text)` helper
-- [ ] Build `agents/nodejs-developer/index.js`:
+- [x] Build `agents/nodejs-developer/index.js`:
   - Start Slack listener
   - Route message to handler: `handleMessage(text)`
   - Reply "I received: {text}" as a smoke test
@@ -85,8 +85,8 @@ mimic-me/
 
 > Goal: Agent can read assigned issues, create branches, and open PRs.
 
-- [ ] Install GitHub SDK: `npm install @octokit/rest`
-- [ ] Build `agents/nodejs-developer/tools/github.js`:
+- [x] Install GitHub SDK: `npm install @octokit/rest`
+- [x] Build `agents/nodejs-developer/tools/github.js`:
   - `getAssignedIssues()` — fetch open issues with label `agent-assigned`
   - `getIssue(issueNumber)` — fetch single issue by number
   - `getIssueType(issue)` — return `'code'` or `'spike'` based on labels
@@ -143,13 +143,13 @@ mimic-me/
 
 > Goal: Agent learns from your GitHub PR review comments and improves over time.
 
-- [ ] Build memory updater (runs after a PR is closed/merged):
+- [x] Build memory updater (runs after a PR is closed/merged):
   - `getPRReviewComments(prNumber)` → fetch all your inline comments
   - Pass raw comments to Claude: "Distill these into reusable patterns for a nodejs developer"
   - Append new patterns to `memory.json` under `patterns[]`
   - Also store raw comments under `feedback[]` with PR reference
-- [ ] Wire trigger: agent polls for closed PRs it opened, runs updater when found
-- [ ] Cap `memory.json` patterns at 50 entries (remove oldest when limit hit)
+- [x] Wire trigger: agent polls for closed PRs it opened, runs updater when found
+- [x] Cap `memory.json` patterns at 50 entries (remove oldest when limit hit)
 - [ ] Test: leave a comment on a test PR, confirm it appears in memory on next run
 
 ### memory.json shape
@@ -176,13 +176,13 @@ mimic-me/
 
 > Goal: Add/disable agents without touching code.
 
-- [ ] Build simple web UI on `taha7.com` (Hostinger shared hosting)
+- [x] Build simple web UI on `taha7.com` (Hostinger shared hosting)
   - List active agents (read from `config.yaml`)
   - Toggle agents on/off
   - Edit agent workflow doc in-browser
   - View memory patterns per agent
-- [ ] UI calls a lightweight API hosted on Railway that reads/writes `config.yaml`
-- [ ] Auth: password-protected or Magic Link to your email
+- [x] UI calls a lightweight API hosted on Railway that reads/writes `config.yaml`
+- [x] Auth: password-protected or Magic Link to your email
 - [ ] Define and implement what "disabled" means for a running agent — options: (a) startup check: agent reads `config.yaml` on boot and exits if `enabled: false`; (b) runtime poll: agent checks every N minutes and stops handling messages; (c) process supervisor kills/starts the process based on the flag
 
 ---
