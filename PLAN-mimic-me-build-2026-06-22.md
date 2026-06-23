@@ -183,6 +183,7 @@ mimic-me/
   - View memory patterns per agent
 - [ ] UI calls a lightweight API hosted on Railway that reads/writes `config.yaml`
 - [ ] Auth: password-protected or Magic Link to your email
+- [ ] Define and implement what "disabled" means for a running agent — options: (a) startup check: agent reads `config.yaml` on boot and exits if `enabled: false`; (b) runtime poll: agent checks every N minutes and stops handling messages; (c) process supervisor kills/starts the process based on the flag
 
 ---
 

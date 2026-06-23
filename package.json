@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start:nodejs-developer": "node agents/nodejs-developer/index.js",
+    "start:api": "node api/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -15,6 +16,9 @@
     "@anthropic-ai/sdk": "^0.105.0",
     "@octokit/rest": "^22.0.1",
     "@slack/bolt": "^4.7.3",
-    "dotenv": "^17.4.2"
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "js-yaml": "^5.0.0"
   }
 }
