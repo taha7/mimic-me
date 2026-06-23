@@ -8,20 +8,51 @@ import { initSlack, onCEOMessage, sendMessage } from './tools/slack.js';
 import { getAssignedIssues, getIssue, getIssueType, createBranch, commitFile, openPR, getAgentClosedPRs, getPRReviewComments, issueNumberFromBranch } from './tools/github.js';
 import { isAlreadyProcessed, updateMemoryFromPR } from './tools/memory.js';
 import { buildSystemPrompt, buildUserMessage } from './prompts/task.js';
-// PLAN-sdk-tool-use-2026-06-24: replaced by Anthropic SDK agentic loop
-// import { buildSessionSystemPrompt } from './prompts/session.js';
-// import { SessionManager } from './tools/session.js';
 
 const AGENT_DIR = dirname(fileURLToPath(import.meta.url));
 
 const anthropic = new Anthropic();
 
-// PLAN-sdk-tool-use-2026-06-24: CLI session replaced by SDK agentic loop (messages[] array)
-// let session;
-// const STOP_SESSION_RE = /^(stop session|end session|kill session)\s*$/i;
-
 // In-memory task state — one task at a time
 let currentTask = null; // { issueNumber, issueTitle, type, status }
+
+// SDK agentic loop state
+const chatMessages = [];
+let chatInactivityTimer = null;
+let chatTimeoutMs = 30 * 60 * 1000;
+const RESET_CHAT_RE = /^(reset chat|clear chat|new chat)\s*$/i;
+
+const CHAT_TOOLS = [
+  {
+    name: 'list_issues',
+    description: 'List all open GitHub issues assigned to this agent.',
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'get_issue',
+    description: 'Fetch details for a specific GitHub issue by number.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        number: { type: 'integer', description: 'The GitHub issue number.' },
+      },
+      required: ['number'],
+    },
+  },
+  {
+    name: 'start_issue',
+    description: 'Start working on a GitHub issue — creates a branch, calls Claude, commits code or a design doc, and opens a PR.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        issue_number: { type: 'integer', description: 'The GitHub issue number to work on.' },
+      },
+      required: ['issue_number'],
+    },
+  },
+];
+
+const CHAT_SYSTEM_PROMPT = 'You are a helpful coding assistant embedded in a Slack-based developer agent. You can list GitHub issues, fetch issue details, and start working on issues. Answer questions, help debug code, review designs, and discuss implementation ideas.';
 
 const INTENT_SYSTEM_PROMPT = `You are an intent router for a coding agent. Given a message from the CEO, return a JSON object identifying the intent.
 
@@ -261,39 +292,102 @@ export async function callClaude(issue, taskType) {
   return response.content[0].text;
 }
 
-// PLAN-sdk-tool-use-2026-06-24: CLI session handleChatMessage — replaced by SDK agentic loop
-// async function handleChatMessage(text, say) {
-//   if (!session.isActive()) {
-//     const ready = session.startSession(buildSessionSystemPrompt());
-//     await say('_Starting Claude session…_');
-//     await ready;
-//   }
-//
-//   let response;
-//   try {
-//     response = await session.sendMessage(text);
-//   } catch (err) {
-//     await say(`:x: Claude session error: \`${err.message}\``);
-//     return;
-//   }
-//
-//   const MAX = 3000;
-//   const truncated = response.length > MAX ? response.slice(0, MAX) + '\n…(truncated)' : response;
-//   await say(truncated);
-// }
+async function executeTool(toolName, toolInput, say) {
+  switch (toolName) {
+    case 'list_issues': {
+      const issues = await getAssignedIssues();
+      if (issues.length === 0) return 'No open issues assigned right now.';
+      return issues
+        .map((i) => {
+          const type = getIssueType(i);
+          return `#${i.number}${type ? ` [${type}]` : ''}: ${i.title}`;
+        })
+        .join('\n');
+    }
+    case 'get_issue': {
+      const issue = await getIssue(toolInput.number);
+      return JSON.stringify({
+        number: issue.number,
+        title: issue.title,
+        body: issue.body,
+        labels: issue.labels.map((l) => l.name),
+      });
+    }
+    case 'start_issue': {
+      await handleStartIssue(toolInput.issue_number, say);
+      return `Triggered start for issue #${toolInput.issue_number}.`;
+    }
+    default:
+      return `Unknown tool: ${toolName}`;
+  }
+}
+
+function resetChatInactivity() {
+  clearTimeout(chatInactivityTimer);
+  chatInactivityTimer = setTimeout(() => {
+    chatMessages.length = 0;
+  }, chatTimeoutMs);
+}
 
 async function handleChatMessage(text, say) {
-  // TODO: implement SDK agentic loop (see PLAN-sdk-tool-use-2026-06-24.md)
-  await say('_Agentic chat not yet implemented. See PLAN-sdk-tool-use-2026-06-24.md_');
+  chatMessages.push({ role: 'user', content: text });
+  resetChatInactivity();
+
+  const MAX_TURNS = 10;
+  let turns = 0;
+
+  while (turns < MAX_TURNS) {
+    turns++;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
+      system: CHAT_SYSTEM_PROMPT,
+      tools: CHAT_TOOLS,
+      messages: chatMessages,
+    });
+
+    chatMessages.push({ role: 'assistant', content: response.content });
+
+    if (response.stop_reason === 'end_turn') {
+      const textBlock = response.content.find((b) => b.type === 'text');
+      if (textBlock) {
+        const MAX = 3000;
+        const out = textBlock.text.length > MAX ? textBlock.text.slice(0, MAX) + '\n…(truncated)' : textBlock.text;
+        await say(out);
+      }
+      break;
+    }
+
+    if (response.stop_reason === 'tool_use') {
+      const textBlock = response.content.find((b) => b.type === 'text');
+      if (textBlock?.text) await say(textBlock.text);
+
+      const toolUseBlocks = response.content.filter((b) => b.type === 'tool_use');
+      const toolResults = [];
+
+      for (const toolUse of toolUseBlocks) {
+        let result;
+        try {
+          result = await executeTool(toolUse.name, toolUse.input, say);
+        } catch (err) {
+          result = `Error: ${err.message}`;
+        }
+        toolResults.push({ type: 'tool_result', tool_use_id: toolUse.id, content: result });
+      }
+
+      chatMessages.push({ role: 'user', content: toolResults });
+    }
+  }
 }
 
 async function handleMessage(text, say) {
-  // PLAN-sdk-tool-use-2026-06-24: CLI session pre-filter removed; will be replaced by "reset chat"
-  // if (STOP_SESSION_RE.test(text.trim())) {
-  //   if (session.isActive()) { session.endSession(); await say('Claude session ended.'); }
-  //   else { await say('No active Claude session.'); }
-  //   return;
-  // }
+  if (RESET_CHAT_RE.test(text.trim())) {
+    chatMessages.length = 0;
+    clearTimeout(chatInactivityTimer);
+    await say('Chat history cleared.');
+    return;
+  }
 
   try {
     const parsed = await parseIntent(text);
@@ -370,9 +464,8 @@ async function runMemoryUpdate() {
 async function start() {
   const configRaw = await readFile(join(AGENT_DIR, '../../config.yaml'), 'utf8');
   const config = yamlLoad(configRaw);
-  // PLAN-sdk-tool-use-2026-06-24: SessionManager replaced by SDK agentic loop
-  // const timeoutMinutes = config.agents?.['nodejs-developer']?.sessionTimeoutMinutes ?? 30;
-  // session = new SessionManager(timeoutMinutes);
+  const timeoutMinutes = config.agents?.['nodejs-developer']?.sessionTimeoutMinutes ?? 30;
+  chatTimeoutMs = timeoutMinutes * 60 * 1000;
 
   const app = initSlack();
 

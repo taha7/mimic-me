@@ -189,17 +189,17 @@ mimic-me/
 > Goal: Replace the `SessionManager` (claude CLI subprocesses) with a direct Anthropic SDK tool-use loop so Claude can autonomously list issues, pick tasks, and trigger implementations during natural conversation.
 > Plan file: `PLAN-sdk-tool-use-2026-06-24.md`
 
-- [ ] Define tool schemas for the GitHub functions Claude can call:
+- [x] Define tool schemas for the GitHub functions Claude can call:
   - `list_issues` — wraps `getAssignedIssues()`
   - `get_issue` — wraps `getIssue(number)`
   - `start_issue` — triggers `handleCodeTask` or `handleSpikeTask` based on issue type
-- [ ] Replace `handleChatMessage` with an SDK agentic loop:
+- [x] Replace `handleChatMessage` with an SDK agentic loop:
   - Keep `messages[]` array in module scope (replaces CLI session temp dir)
   - Use `claude-sonnet-4-6`
   - Tool loop: call → check `stop_reason` → execute tool → append `tool_result` → repeat until `end_turn`
-- [ ] Wire "reset chat" command to clear the `messages[]` array
+- [x] Wire "reset chat" command to clear the `messages[]` array
 - [ ] (Optional) Remove `parseIntent` / static intent router — let Claude decide from context
-- [ ] (Optional) Add inactivity timeout: clear `messages[]` after N minutes of silence
+- [x] (Optional) Add inactivity timeout: clear `messages[]` after N minutes of silence
 
 ---
 
